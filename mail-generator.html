@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>見学予約担当者変更Mail Generator</title>
+  
+  <!-- CSS Library (Tailwind Play CDN supports arbitrary values) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Icons Library (Lucide) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- ZIP processing Library (zip.js for password protected ZIP) -->
+  <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js/dist/zip.min.js"></script>
+
+  <!-- Typography -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@100..900&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .font-serif { font-family: 'Cormorant Garamond', serif; }
+  </style>
+</head>
+<body class="min-h-screen bg-[#F5F5F0] text-[#1A1A1A] font-sans p-4 md:p-8">
+  <div class="max-w-5xl mx-auto">
+    
+    <!-- Header -->
+    <header class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div>
+        <h1 class="text-4xl font-serif font-light tracking-tight mb-2">
+          Mail Generator <span class="italic text-[#5A5A40]">&</span> Protector
+        </h1>
+        <p class="text-sm text-[#5A5A40]/70 uppercase tracking-widest font-medium">
+          Business Communication Tool
+        </p>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-[#5A5A40]/60 bg-white/50 px-3 py-1.5 rounded-full border border-[#5A5A40]/10">
+        <i data-lucide="calendar" class="w-3 h-3"></i>
+        <span id="current-date"></span>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- Left Column: Inputs -->
+      <div class="lg:col-span-5 space-y-6">
+        <section class="bg-white rounded-3xl p-6 shadow-sm border border-[#5A5A40]/5">
+          <div class="flex items-center gap-2 mb-6">
+            <div class="w-8 h-8 rounded-full bg-[#5A5A40] flex items-center justify-center text-white">
+              <i data-lucide="info" class="w-4 h-4"></i>
+            </div>
+            <h2 class="text-lg font-medium">基本設定</h2>
+          </div>
+
+          <div class="space-y-4">
+            
+            <!-- Sender Name -->
+            <div>
+              <label class="block text-[10px] uppercase tracking-wider font-bold text-[#5A5A40]/50 mb-1.5 ml-1">差出人名</label>
+              <div class="relative">
+                <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5A5A40]/40"></i>
+                <input type="text" id="in-senderName" class="w-full pl-10 pr-4 py-2.5 bg-[#F5F5F0]/50 border border-[#5A5A40]/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5A5A40]/20 transition-all text-sm" placeholder="差出人 太郎">
+              </div>
+            </div>
+
+            <!-- Registration Count -->
+            <div>
+              <label class="block text-[10px] uppercase tracking-wider font-bold text-[#5A5A40]/50 mb-1.5 ml-1">登録件数</label>
+              <div class="relative">
+                <i data-lucide="chevron-right" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5A5A40]/40"></i>
+                <input type="text" id="in-regCount" class="w-full pl-10 pr-4 py-2.5 bg-[#F5F5F0]/50 border border-[#5A5A40]/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5A5A40]/20 transition-all text-sm" placeholder="1">
+              </div>
+            </div>
+
+            <!-- Input Data Textarea -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5 ml-1">
+                <label class="block text-[10px] uppercase tracking-wider font-bold text-[#5A5A40]/50">入力データ</label>
+                <button id="btn-clear" class="text-[10px] text-[#5A5A40]/40 hover:text-[#5A5A40] transition-colors font-bold uppercase tracking-tighter">Clear</button>
+              </div>
+              <textarea id="in-inputData" class="w-full h-48 p-4 bg-[#F5F5F0]/50 border border-[#5A5A40]/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5A5A40]/20 transition-all text-sm resize-none font-mono"></textarea>
+            </div>
+
+            <!-- File Drop Zone -->
+            <div>
+              <label class="block text-[10px] uppercase tracking-wider font-bold text-[#5A5A40]/50 mb-1.5 ml-1">Excelファイルをドロップ (パスワード付きZIP生成)</label>
+              <div id="dropzone" class="relative border-2 border-dashed border-[#5A5A40]/20 bg-[#F5F5F0]/30 hover:border-[#5A5A40]/40 rounded-2xl p-6 transition-all cursor-pointer flex flex-col items-center justify-center gap-2">
+                <input type="file" id="in-file" class="hidden" accept=".xls,.xlsx">
+                
+                <div id="file-unselected" class="flex flex-col items-center gap-2">
+                  <i data-lucide="upload" class="w-6 h-6 text-[#5A5A40]/40"></i>
+                  <p class="text-xs text-[#5A5A40]/60 text-center">ファイルをドロップするかクリックして選択</p>
+                </div>
+                
+                <div id="file-selected" class="hidden flex-col items-center w-full">
+                  <div class="flex items-center gap-2 text-sm font-medium text-[#1A1A1A]">
+                    <i data-lucide="file-text" class="w-5 h-5 text-[#5A5A40]"></i>
+                    <span id="selected-filename" class="truncate max-w-[180px]">filename</span>
+                    <button id="btn-remove-file" class="p-1 hover:bg-black/5 rounded-full flex-shrink-0">
+                      <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                  </div>
+                  <button id="btn-download" class="mt-3 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5A5A40] text-white text-xs font-bold rounded-xl hover:bg-[#4A4A30] transition-all shadow-sm w-full">
+                    <i data-lucide="download" class="w-3 h-3"></i> ZIPをダウンロード
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Extracted Filename String -->
+            <div>
+              <label class="block text-[10px] uppercase tracking-wider font-bold text-[#5A5A40]/50 mb-1.5 ml-1">Excelファイル名 (日付抽出用)</label>
+              <div class="relative">
+                <i data-lucide="file-text" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5A5A40]/40"></i>
+                <input type="text" id="in-filename" class="w-full pl-10 pr-4 py-2.5 bg-[#F5F5F0]/50 border border-[#5A5A40]/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5A5A40]/20 transition-all font-mono text-sm">
+              </div>
+              <p class="mt-1.5 text-[10px] text-[#5A5A40]/60 italic ml-1">抽出された日付: <span id="ext-date" class="font-bold"></span></p>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="bg-[#5A5A40] text-white rounded-3xl p-6 shadow-lg">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <i data-lucide="lock" class="w-4 h-4"></i>
+              <h2 class="text-sm font-medium uppercase tracking-widest">Security Password</h2>
+            </div>
+            <button id="btn-regen-pwd" class="p-2 hover:bg-white/10 rounded-full transition-colors" title="パスワードを再生成">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="bg-black/20 rounded-xl p-4 flex items-center justify-between">
+            <span id="disp-password" class="font-mono text-xl tracking-wider select-all"></span>
+            <button id="btn-copy-pwd" class="p-2 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors">
+              <i data-lucide="copy" class="w-4 h-4 text-white"></i>
+            </button>
+          </div>
+          <p class="mt-4 text-[10px] text-white/50 italic">※このパスワードはメール2通目およびZIP生成に自動使用されます。</p>
+        </section>
+      </div>
+
+      <!-- Right Column: Results -->
+      <div class="lg:col-span-7 space-y-8">
+        
+        <!-- Email 1 -->
+        <div class="bg-white rounded-3xl shadow-sm border border-[#5A5A40]/5 overflow-hidden">
+          <div class="bg-[#F5F5F0] px-6 py-4 border-b border-[#5A5A40]/10 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+              <span class="text-xs font-bold uppercase tracking-widest text-[#5A5A40]/70">Email 1: Notification</span>
+            </div>
+            <button id="btn-copy-email1" class="flex items-center gap-2 text-xs font-medium text-[#5A5A40] hover:text-[#1A1A1A] transition-colors">
+              <i data-lucide="copy" class="w-3 h-3"></i> <span>Copy All</span>
+            </button>
+          </div>
+          <div class="p-6 space-y-4">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-[#5A5A40]/40 block mb-1">Subject</span>
+              <div id="email1-subject" class="text-sm font-medium bg-[#F5F5F0]/30 p-2 rounded-lg border border-[#5A5A40]/5"></div>
+            </div>
+            <div>
+              <span class="text-[10px] uppercase font-bold text-[#5A5A40]/40 block mb-1">Body</span>
+              <pre id="email1-body" class="text-sm leading-relaxed whitespace-pre-wrap font-sans text-[#1A1A1A] bg-[#F5F5F0]/30 p-4 rounded-xl border border-[#5A5A40]/5"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email 2 -->
+        <div class="bg-white rounded-3xl shadow-sm border border-[#5A5A40]/5 overflow-hidden">
+          <div class="bg-[#F5F5F0] px-6 py-4 border-b border-[#5A5A40]/10 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+              <span class="text-xs font-bold uppercase tracking-widest text-[#5A5A40]/70">Email 2: Password</span>
+            </div>
+            <button id="btn-copy-email2" class="flex items-center gap-2 text-xs font-medium text-[#5A5A40] hover:text-[#1A1A1A] transition-colors">
+              <i data-lucide="copy" class="w-3 h-3"></i> <span>Copy All</span>
+            </button>
+          </div>
+          <div class="p-6 space-y-4">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-[#5A5A40]/40 block mb-1">Subject</span>
+              <div id="email2-subject" class="text-sm font-medium bg-[#F5F5F0]/30 p-2 rounded-lg border border-[#5A5A40]/5"></div>
+            </div>
+            <div>
+              <span class="text-[10px] uppercase font-bold text-[#5A5A40]/40 block mb-1">Body</span>
+              <pre id="email2-body" class="text-sm leading-relaxed whitespace-pre-wrap font-sans text-[#1A1A1A] bg-[#F5F5F0]/30 p-4 rounded-xl border border-[#5A5A40]/5"></pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-16 pt-8 border-t border-[#5A5A40]/10 text-center pb-8">
+      <p class="text-[10px] text-[#5A5A40]/40 uppercase tracking-[0.2em]">
+        &copy; <span id="current-year"></span> Professional Mail Assistant • Crafted for Efficiency (Single Html Version)
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    // --- Initial States and Configurations ---
+    const state = {
+      senderName: '石川',
+      registrationCount: '1',
+      filename: 'hit転送メールアカウント一覧[2026_0219].xls',
+      inputData: `-------------------------------------------------------------
+会場名：大野城会場
+貴社名：Lib Work(リブワーク)
+モデルハウス名：ink (平屋モデルハウス)
+-------------------------------------------------------------`,
+      password: '',
+      selectedFile: null
+    };
+
+    function generatePassword(length = 12) {
+      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+      let retVal = "";
+      for (let i = 0, n = charset.length; i < length; ++i) {
+        retVal += charset.charAt(Math.floor(Math.random() * n));
+      }
+      return retVal;
+    }
+    state.password = generatePassword();
+
+    function extractDateFromFilename(filename) {
+      const match = filename.match(/\[(\d{4})_(\d{2})(\d{2})\]/);
+      if (match) {
+        const year = parseInt(match[1]);
+        const month = parseInt(match[2]);
+        const day = parseInt(match[3]);
+        const date = new Date(year, month - 1, day);
+        const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+        return `${month}/${day}(${dayOfWeek})`;
+      }
+      return '2/19(木)';
+    }
+
+    // --- DOM Elements ---
+    const els = {
+      inSenderName: document.getElementById('in-senderName'),
+      inRegCount: document.getElementById('in-regCount'),
+      inInputData: document.getElementById('in-inputData'),
+      inFilename: document.getElementById('in-filename'),
+      inFile: document.getElementById('in-file'),
+      
+      extDate: document.getElementById('ext-date'),
+      dispPassword: document.getElementById('disp-password'),
+      
+      dropzone: document.getElementById('dropzone'),
+      fileUnselected: document.getElementById('file-unselected'),
+      fileSelected: document.getElementById('file-selected'),
+      selectedFilename: document.getElementById('selected-filename'),
+      
+      email1Subject: document.getElementById('email1-subject'),
+      email1Body: document.getElementById('email1-body'),
+      email2Subject: document.getElementById('email2-subject'),
+      email2Body: document.getElementById('email2-body'),
+    };
+
+    // Initialize values in DOM
+    els.inSenderName.value = state.senderName;
+    els.inRegCount.value = state.registrationCount;
+    els.inInputData.value = state.inputData;
+    els.inFilename.value = state.filename;
+    document.getElementById('current-date').innerText = new Date().toLocaleDateString('ja-JP');
+    document.getElementById('current-year').innerText = new Date().getFullYear();
+
+    // --- Render Logic (Updates everything cleanly) ---
+    function render() {
+      // Setup string states
+      const dateStr = extractDateFromFilename(state.filename);
+      els.extDate.innerText = dateStr;
+      els.dispPassword.innerText = state.password;
+
+      // Construct Templates
+      const email1Subj = `【見学予約システム：${dateStr}の転送メール一覧】添付ファイル1部`;
+      const email1Body = `お世話になります。クロスラインの${state.senderName}です。\n件名に関しますファイル1部を添付致します。\n\nパスワードは次のメールでお送りします。\n\n-------------------------------------------------------------\n${state.registrationCount}件のご担当者様の転送メールアドレスの登録をいたしました。\n${state.inputData}\n＋＋＋ CROSSLINE Co.,Ltd. ＋＋＋\n有限会社クロスライン\n〒810-0001福岡市中央区天神2-3-36\n ibb fukuokaビル 2F\ntel 092・715・7066\nhttps://www.cross-line.co.jp/`;
+
+      const email2Subj = `【見学予約システム：${dateStr}の転送メール一覧】添付ファイル1部[パスワードをお知らせします]`;
+      const email2Body = `前回メールで送信した\n暗号化ファイルのパスワードは以下となります。\n\n件名: 【見学予約システム：${dateStr}の転送メール一覧】添付ファイル1部\nファイル名: ${state.filename.replace(/\.[^/.]+$/, "")}.zip\n\nパスワード:\n${state.password}\n\n以上、よろしくお願いいたします。\n-- \n＋＋＋ CROSSLINE Co.,Ltd. ＋＋＋\n有限会社クロスライン\n〒810-0001福岡市中央区天神2-3-36\n ibb fukuokaビル 2F\ntel 092・715・7066\nhttps://www.cross-line.co.jp/`;
+
+      els.email1Subject.innerText = email1Subj;
+      els.email1Body.innerText = email1Body;
+      els.email2Subject.innerText = email2Subj;
+      els.email2Body.innerText = email2Body;
+
+      // Dropzone UI logic
+      if (state.selectedFile) {
+        els.fileUnselected.classList.add('hidden');
+        els.fileSelected.classList.remove('hidden');
+        els.fileSelected.classList.add('flex');
+        els.selectedFilename.innerText = state.selectedFile.name;
+      } else {
+        els.fileUnselected.classList.remove('hidden');
+        els.fileSelected.classList.remove('flex');
+        els.fileSelected.classList.add('hidden');
+      }
+    }
+
+    // --- Input Event Bindings ---
+    els.inSenderName.addEventListener('input', e => { state.senderName = e.target.value; render(); });
+    els.inRegCount.addEventListener('input', e => { state.registrationCount = e.target.value; render(); });
+    els.inInputData.addEventListener('input', e => { state.inputData = e.target.value; render(); });
+    els.inFilename.addEventListener('input', e => { state.filename = e.target.value; render(); });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      state.inputData = '';
+      els.inInputData.value = '';
+      render();
+    });
+
+    document.getElementById('btn-regen-pwd').addEventListener('click', () => {
+      state.password = generatePassword();
+      render();
+    });
+
+    // --- Dropzone Logic ---
+    function setActiveStyle(active) {
+      if (active) {
+        els.dropzone.classList.add('border-[#5A5A40]', 'bg-[#5A5A40]/5');
+        els.dropzone.classList.remove('border-[#5A5A40]/20', 'bg-[#F5F5F0]/30');
+      } else {
+        els.dropzone.classList.remove('border-[#5A5A40]', 'bg-[#5A5A40]/5');
+        els.dropzone.classList.add('border-[#5A5A40]/20', 'bg-[#F5F5F0]/30');
+      }
+    }
+
+    els.dropzone.addEventListener('dragover', e => {
+      e.preventDefault();
+      setActiveStyle(true);
+    });
+
+    els.dropzone.addEventListener('dragleave', () => {
+      setActiveStyle(false);
+    });
+
+    els.dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      setActiveStyle(false);
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        state.selectedFile = e.dataTransfer.files[0];
+        state.filename = state.selectedFile.name;
+        els.inFilename.value = state.filename;
+        render();
+      }
+    });
+
+    els.dropzone.addEventListener('click', (e) => {
+      if(e.target === els.dropzone || els.fileUnselected.contains(e.target)) {
+        els.inFile.click();
+      }
+    });
+
+    els.inFile.addEventListener('change', e => {
+      if (e.target.files && e.target.files[0]) {
+        state.selectedFile = e.target.files[0];
+        state.filename = state.selectedFile.name;
+        els.inFilename.value = state.filename;
+        render();
+      }
+    });
+
+    document.getElementById('btn-remove-file').addEventListener('click', e => {
+      e.stopPropagation();
+      state.selectedFile = null;
+      els.inFile.value = '';
+      render();
+    });
+
+    // --- ZIP Generation Logic ---
+    document.getElementById('btn-download').addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!state.selectedFile) return;
+
+      try {
+        const zipFilename = state.selectedFile.name.replace(/\.[^/.]+$/, "") + ".zip";
+        const blobWriter = new zip.BlobWriter("application/zip");
+        const zipWriter = new zip.ZipWriter(blobWriter);
+
+        const arrayBuffer = await state.selectedFile.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+
+        // Uses ZipCrypto (Zip 2.0 Legacy) for broad compatibility based on past spec
+        await zipWriter.add(state.selectedFile.name, new zip.Uint8ArrayReader(uint8Array), {
+          password: state.password,
+          zipCrypto: true
+        });
+
+        const blob = await zipWriter.close();
+        
+        // Trigger download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = zipFilename;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('ZIP generation failed:', err);
+        alert('ZIPファイルの生成に失敗しました。');
+      }
+    });
+
+    // --- Copy Methods ---
+    function setupCopyBtn(btnId, targetId) {
+      const btn = document.getElementById(btnId);
+      btn.addEventListener('click', () => {
+        let textToCopy = '';
+        if (targetId === 'pwd') {
+          textToCopy = state.password;
+        } else if (targetId === 'email1') {
+          textToCopy = els.email1Subject.innerText + '\n\n' + els.email1Body.innerText;
+        } else if (targetId === 'email2') {
+          textToCopy = els.email2Subject.innerText + '\n\n' + els.email2Body.innerText;
+        }
+        
+        navigator.clipboard.writeText(textToCopy);
+        
+        // Visual feedback
+        const origHtml = btn.innerHTML;
+        if(targetId === 'pwd') {
+           btn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>';
+        } else {
+           btn.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> <span class="text-emerald-600">Copied</span>`;
+        }
+        lucide.createIcons();
+        
+        setTimeout(() => {
+          btn.innerHTML = origHtml;
+          lucide.createIcons();
+        }, 2000);
+      });
+    }
+
+    setupCopyBtn('btn-copy-pwd', 'pwd');
+    setupCopyBtn('btn-copy-email1', 'email1');
+    setupCopyBtn('btn-copy-email2', 'email2');
+
+    // --- Init ---
+    render();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
